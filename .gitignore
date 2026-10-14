@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+
+# Database backups
+backups/
+*.sql
+
+# Local PostgreSQL install
+postgresql/
+
+# Other local projects
+DB-PROJ/
+
+# Environment files
+.env
+
+# VS Code
+.vscode/
+
+# Windows
+Thumbs.db
+Desktop.ini
