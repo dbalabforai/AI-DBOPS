@@ -1,8 +1,11 @@
 from github_mcp import GitHubMCP
 from remediation_mcp import RemediationMCP
+from retention_mcp import RetentionMCP
+from config import MAX_BACKUP_FILES
 
 github = GitHubMCP()
 remediation = RemediationMCP()
+retention = RetentionMCP()
 
 issues = github.repo.get_issues(
     state="open"
@@ -11,60 +14,104 @@ issues = github.repo.get_issues(
 for issue in issues:
 
     print(
-        f"#{issue.number} | {issue.state} | {issue.title}"
+        f"#{issue.number} | {issue.title}"
     )
 
-    if issue.state != "open":
-        continue
+    #
+    # DATABASE BACKUP FAILURE
+    #
+    if issue.title == "Database Backup Failure":
 
-    if "Database Backup Failure" not in issue.title:
+        print(
+            "Processing Backup Failure"
+        )
 
-        print("Skipping")
+        output = remediation.run_backup()
 
-        continue
+        success = remediation.verify_backup()
 
-    print("Processing Backup Failure")
+        if success:
 
-    output = remediation.run_backup()
-
-    success = remediation.verify_backup()
-
-    if success:
-
-        github.comment_issue(
-            issue.number,
-            f"""
+            github.comment_issue(
+                issue.number,
+                f"""
 Automated remediation completed.
 
-Action Taken:
-- Executed backup_database.py
+Action:
+Executed backup_database.py
 
 Result:
 {output}
 
 Verification:
-Backup file verified successfully.
+Backup verified successfully.
 
 Status:
 Resolved
 """
-        )
+            )
 
-        github.close_issue(
-            issue.number
-        )
+            github.close_issue(
+                issue.number
+            )
+
+            print(
+                f"Issue #{issue.number} resolved"
+            )
+
+        else:
+
+            github.comment_issue(
+                issue.number,
+                "Remediation failed."
+            )
+
+    #
+    # BACKUP STORAGE FULL
+    #
+    elif issue.title == "Backup Storage Full":
 
         print(
-            f"Issue #{issue.number} resolved"
+            "Processing Storage Alert"
         )
 
-    else:
-
-        github.comment_issue(
-            issue.number,
-            "Remediation attempted but verification failed."
+        removed = retention.cleanup_old_backups(
+            keep_count=MAX_BACKUP_FILES
         )
 
-        print(
-            f"Issue #{issue.number} requires manual review"
+        current_count = (
+            retention.get_backup_count()
         )
+
+        if current_count <= MAX_BACKUP_FILES:
+
+            github.comment_issue(
+                issue.number,
+                f"""
+Automated retention cleanup completed.
+
+Files Removed:
+{removed}
+
+Current Backup Count:
+{current_count}
+
+Status:
+Resolved
+"""
+            )
+
+            github.close_issue(
+                issue.number
+            )
+
+            print(
+                f"Issue #{issue.number} resolved"
+            )
+
+        else:
+
+            github.comment_issue(
+                issue.number,
+                "Cleanup failed. Manual review required."
+            )
