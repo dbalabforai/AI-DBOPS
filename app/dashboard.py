@@ -5,8 +5,9 @@ import pandas as pd
 import streamlit as st
 
 from config import DATABASES
-from retention_mcp import RetentionMCP
-from github_mcp import GitHubMCP
+
+from mcp.retention_mcp import RetentionMCP
+from mcp.github_mcp import GitHubMCP
 
 
 st.set_page_config(
